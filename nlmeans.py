@@ -1,6 +1,7 @@
 import sys
-from PyQt4.QtCore import QRect, Qt, QPoint
-from PyQt4.QtGui import QApplication, QMainWindow, QLabel, qRgb, QImage, QPixmap, QFileDialog, QInputDialog
+from PyQt5.QtCore import QRect, Qt, QPoint
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QFileDialog, QInputDialog
+from PyQt5.QtGui import qRgb, QImage, QPixmap
 from ui_mainwindow import Ui_MainWindow
 import numpy as np
 import pyopencl as cl
@@ -78,7 +79,6 @@ class NLMeans:
         output_g = cl.Buffer(self.ctx, mf.WRITE_ONLY, data.nbytes)
 
         args = [data_g, output_g, mask_g, np.int32(rows), np.int32(cols), np.float32(self.h)]
-        #self.prg.NLMeans_kernel(self.queue, data.shape, None, *args)
         self.prg.NLMeans_kernel(self.queue, (256,), (256,), *args)
         cl.enqueue_copy(self.queue, output, output_g)
 
@@ -106,8 +106,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.hSlider.valueChanged.connect(lambda x: self.setH(x/1000))
 
         self.showOriginal = False
-        self.loadButton.clicked.connect(lambda: self.loadImage(QFileDialog.getOpenFileName(self, "Open Image")))
-        self.saveButton.clicked.connect(lambda: self.saveImage(QFileDialog.getSaveFileName(self, "Save Image", filter="*.png")))
+        self.loadButton.clicked.connect(lambda: self.loadImage(QFileDialog.getOpenFileName(self, "Open Image")[0]))
+        self.saveButton.clicked.connect(lambda: self.saveImage(QFileDialog.getSaveFileName(self, "Save Image", filter="*.png")[0]))
         self.toggleOriginalButton.clicked.connect(self.toggleImage)
 
         platform = choose(self, cl.get_platforms(), "OpenCL Platform", "Please choose OpenCL Platform")
@@ -125,11 +125,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.maskScrollarea.setWidget(self.maskLabel)
         self.showMask()
 
-        self.loadImage("lena.jpg")
+        self.loadImage("test2.jpg")
 
         self.resetButton.clicked.connect(self.resetParameters)
         self.resetParameters()
-
 
     def setAx(self, ax, process=True):
         self.axSlider.setValue(ax)
@@ -145,14 +144,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if process: self.process()
 
     def setA(self, a, process=True):
-        self.aSlider.setValue(a*1000)
+        self.aSlider.setValue(int(a * 1000))  # Convert to integer
         self.aSpinbox.setValue(a)
         self.nlmeans.setA(a)
         self.showMask()
-        if process: self.process()
+        if process:
+            self.process()
 
     def setH(self, h, process=True):
-        self.hSlider.setValue(h*1000)
+        self.hSlider.setValue(int(h*1000))
         self.hSpinbox.setValue(h)
         self.nlmeans.setH(h)
         if process: self.process()
@@ -165,21 +165,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def showMask(self):
         n = self.nlmeans.mask.shape[0]
-        m = n*8
+        m = n * 8
 
-        mask = self.nlmeans.mask / self.nlmeans.mask[n//2,n//2] # rescale to make center extreme
-        mask = ((1.0 - mask)*255.0).astype(np.uint8)
+        # Rescale the mask to make the center extreme, and convert to uint8
+        mask = self.nlmeans.mask / self.nlmeans.mask[n // 2, n // 2]  # rescale to make center extreme
+        mask = ((1.0 - mask) * 255.0).astype(np.uint8)
 
         maskImage = QImage(n, n, QImage.Format_Indexed8)
         maskImage.setColorTable(GREY_PALETTE)
+
+        # Set pixels using (i, j) coordinates and the mask value
         for i in range(n):
             for j in range(n):
-                maskImage.setPixel(QPoint(i, j), mask[i,j])
+                maskImage.setPixel(i, j, int(mask[i, j]))  # Ensure mask[i, j] is an integer
 
         maskImage = maskImage.scaled(m, m, Qt.KeepAspectRatio)
         self.maskLabel.setPixmap(QPixmap.fromImage(maskImage))
         self.maskLabel.setGeometry(QRect(0, 0, m, m))
-
 
     def loadImage(self, path):
         if not path:
@@ -220,7 +222,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         mpx = self.data.shape[0] * self.data.shape[0] / 1e6
         t = timer() - t0
         self.showImage()
-        self.timeSpinbox.setValue(t*1000)
+        self.timeSpinbox.setValue(int(t*1000))
         self.fpsSpinbox.setValue(1/t)
         self.mpixSpinbox.setValue(mpx/t)
 
