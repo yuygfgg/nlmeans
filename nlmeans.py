@@ -125,7 +125,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.maskScrollarea.setWidget(self.maskLabel)
         self.showMask()
 
-        self.loadImage("test2.jpg")
+        self.loadImage("lena.jpg")
 
         self.resetButton.clicked.connect(self.resetParameters)
         self.resetParameters()

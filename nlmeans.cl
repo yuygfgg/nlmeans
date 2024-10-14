@@ -45,10 +45,6 @@ WSSD(global const float *data,
     return sum;
 }
 
-
-/*
-    NLMeans for one pixel
-*/
 float
 NLMeans_one(global const float *data,
             constant const float *mask,
@@ -65,19 +61,19 @@ NLMeans_one(global const float *data,
         int x = x0+dx;
         int y = y0+dy;
 
-        float f = EXPF(-WSSD(data, mask, x0, y0, x, y, rows, cols) / h_squared);
-        fsum += f;
+        float wssd = WSSD(data, mask, x0, y0, x, y, rows, cols);
+        float f;
 
+        float bisquare = fmax(0.0f, 1.0f - (wssd / h_squared));
+        f = bisquare * bisquare; // Square the bisquare function
+
+        fsum += f;
         sum += _GET(data, x, y) * f;
     }
 
     return sum / fsum;
 }
 
-
-/*
-    NLMeans kernel
-*/
 kernel void
 NLMeans_kernel(global const float *data,
                global float *output,
